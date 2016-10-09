@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html>
+<head>
+<title>Two sliders</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script type="text/javascript" src="js/range.js"></script>
+<script type="text/javascript" src="js/timer.js"></script>
+<script type="text/javascript" src="js/slider.js"></script>
+<link type="text/css" rel="StyleSheet" href="css/bluecurve/bluecurve.css" />
+
+</head>
+<body>
+<h1>Two sliders</h1>
+<form onsubmit="return false;">
+<div class="slider" id="slider-1" tabIndex="1" style="width: 400px; margin: 10px;">
+<input class="slider-input" id="slider-input-1" size="4"/>
+</div>
+Intensity: <input type="text" id="value-1" size="4"/>
+<div class="slider" id="slider-2" tabIndex="2" style="width: 400px; margin: 10px;">
+<input class="slider-input" id="slider-input-2" size="4"/>
+</div>
+Contrast: <input type="text" id="value-2" size="4"/>
+</form>
+
+<script type="text/javascript">
+var sliderEl = document.getElementById("slider-1");
+var inputEl = document.forms[0]["slider-input-1"];
+var value1 = document.getElementById("value-1");
+var s1 = new Slider(sliderEl, inputEl);
+s1.onchange = function () {
+	value1.value = s1.getValue()*0.1;
+};
+var sliderE2 = document.getElementById("slider-2");
+var inputE2 = document.forms[0]["slider-input-2"];
+var value2 = document.getElementById("value-2");
+var s2 = new Slider(sliderE2, inputE2);
+s2.onchange = function () {
+	value2.value = s2.getValue()*0.05;
+};
+s1.setValue(50);
+s2.setValue(50);
+</script>
+
+</body>
+</html>

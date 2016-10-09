@@ -1,0 +1,420 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<!-- 
+This Player is based on the WebGL HDR viewer from Linköping University.
+Additional Javascript libraries: JSColor and WebFX Slider
+-->
+
+<html>
+<head>
+<title>Philips Research Light Player</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<link type="text/css" rel="StyleSheet" href="slider/css/bluecurve/bluecurve.css" />
+<script type="text/javascript" src="slider/js/range.js"></script>
+<script type="text/javascript" src="slider/js/timer.js"></script>
+<script type="text/javascript" src="slider/js/slider.js"></script>
+<script type="text/javascript" src="jscolor/jscolor.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+
+<script type="text/javascript">
+    var channel_number = 12;
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    const int CHAN_NUM = 12;
+    
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+    
+    varying vec2 vTextureCoord;
+
+    uniform sampler2D uSampler;
+	
+	uniform float exposure;
+	uniform float selection;	
+	uniform vec3 amp[CHAN_NUM];
+
+	vec3 scurve(vec3 val, float s, float n) {
+	  return pow(val, vec3(n)) / (pow(val, vec3(n)) + vec3(pow(s, n)));
+	}
+	
+	vec3 lineargamma(vec3 val, float n) {
+	  return pow(val * vec3(n), vec3(1.0/2.2));
+	}
+	
+	vec3 exponential(vec3 val, float n)	{
+	  return pow(1.0-exp(-1.0*val*vec3(n)), vec3(1.0 / 2.2));
+	}	
+
+    void main(void) {
+		float exponent;
+		vec4 texel;
+		vec3 rgbcolor[CHAN_NUM];
+
+		for (int i=0; i < CHAN_NUM; i++)
+		{
+			// texel = texture2D(uSampler, vec2(vTextureCoord.s, (vTextureCoord.t + float(i))/float(channel_number)));
+			texel = texture2D(uSampler, vec2((vTextureCoord.s + float(floor(float(i/5))))/float(3), (vTextureCoord.t + float(float(5) - 1.0 - mod(float(i),float(5))))/float(5)));
+			exponent = texel.a * 255.0 - 128.0;
+			rgbcolor[i] = texel.rgb * pow(2.0, exponent); // Assemble HDR from RGBE
+		}
+
+		vec3 mixedcolor = vec3(0);
+		for (int i=0; i < CHAN_NUM; i++)
+		{
+			if (selection == float(i)) {
+				mixedcolor = mixedcolor + 2.0 * rgbcolor[i];
+			} else {
+				mixedcolor = mixedcolor + amp[i] * rgbcolor[i];
+			}
+		}
+		
+		//mixedcolor = lineargamma(mixedcolor, exposure);
+		mixedcolor = exponential(mixedcolor, exposure);
+        gl_FragColor = vec4(mixedcolor.rgb, 1.0);
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+
+    uniform float uXoffset; // Simple 2D unrotated view, don't bother with a matrix
+    uniform float uYoffset;
+    uniform float uScale;
+
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+		vec3 pos = aVertexPosition + vec3(uXoffset, uYoffset, 0.0);
+		pos = pos * uScale;
+        gl_Position = vec4(pos, 1.0);
+        vTextureCoord = aTextureCoord;
+    }
+</script>
+
+<script type="text/javascript">
+    var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+			gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+    }
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+    var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.aVertexPosition);
+
+        shaderProgram.aTextureCoord = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+        gl.enableVertexAttribArray(shaderProgram.aTextureCoord);
+
+        shaderProgram.uXoffset = gl.getUniformLocation(shaderProgram, "uXoffset");
+        shaderProgram.uYoffset = gl.getUniformLocation(shaderProgram, "uYoffset");
+        shaderProgram.uScale = gl.getUniformLocation(shaderProgram, "uScale");
+		
+        shaderProgram.uSampler = gl.getUniformLocation(shaderProgram, "uSampler");
+		
+        shaderProgram.exposure = gl.getUniformLocation(shaderProgram, "exposure");
+        shaderProgram.selection = gl.getUniformLocation(shaderProgram, "selection");		
+		
+		shaderProgram.amp = [];
+		for (var i = 0; i < channel_number; ++i) {
+			eval( 'shaderProgram.amp[' + i + ']' + ' = gl.getUniformLocation(shaderProgram, "amp[' + i + ']")');
+		}
+    }
+
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    var TextureRGBE;
+
+    function initTexture() {
+		TextureRGBE = gl.createTexture()
+        TextureRGBE.image = new Image();
+        TextureRGBE.image.onload = function () {
+            handleLoadedTexture(TextureRGBE)
+        }
+        TextureRGBE.image.src = "textures/tiled.png";
+    }
+	
+	
+    var quadVertexPositionBuffer;
+    var quadVertexTextureCoordBuffer;
+    var quadVertexIndexBuffer;
+
+    function initBuffers() {
+        quadVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexPositionBuffer);
+        vertices = [
+            // One single face to draw the image as a texture
+            -1.0, -1.0,  0.0,
+             1.0, -1.0,  0.0,
+             1.0,  1.0,  0.0,
+            -1.0,  1.0,  0.0,
+		];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        quadVertexPositionBuffer.itemSize = 3;
+        quadVertexPositionBuffer.numItems = 4;
+
+        quadVertexTextureCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexTextureCoordBuffer);
+        var textureCoords = [
+          // Stretch unit square across the single face
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0,
+          0.0, 1.0,
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
+        quadVertexTextureCoordBuffer.itemSize = 2;
+        quadVertexTextureCoordBuffer.numItems = 4;
+
+        quadVertexIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadVertexIndexBuffer);
+        var quadVertexIndices = [
+            0, 1, 2,      0, 2, 3    // A single quad, made from two triangles
+        ];
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(quadVertexIndices), gl.STATIC_DRAW);
+        quadVertexIndexBuffer.itemSize = 1;
+        quadVertexIndexBuffer.numItems = 6;
+    }
+	
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.aVertexPosition, quadVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexTextureCoordBuffer);
+        gl.vertexAttribPointer(shaderProgram.aTextureCoord, quadVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, TextureRGBE);
+        gl.uniform1i(shaderProgram.uSampler1, 0); // Texture unit 0
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadVertexIndexBuffer);
+
+        // Zoom and pan the view
+        gl.uniform1f(shaderProgram.uXoffset, xOffset);
+        gl.uniform1f(shaderProgram.uYoffset, yOffset);
+        gl.uniform1f(shaderProgram.uScale, scale);
+		
+		// Set the tone mapping parameters
+		gl.uniform1f(shaderProgram.exposure, parseFloat(document.getElementById("value-exposure").value));
+		
+		for (var i = 0; i < channel_number; i++) {
+			gl.uniform3f(shaderProgram.amp[i], parseFloat(document.getElementById('info' + i + '-r').value), parseFloat(document.getElementById('info' + i + '-g').value), parseFloat(document.getElementById('info' + i + '-b').value));
+		}
+		
+		// Draw the single quad
+        gl.drawElements(gl.TRIANGLES, quadVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+    }
+
+    var lastTime = 0;
+
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+        }
+        lastTime = timeNow;
+    }
+
+
+    function tick() {
+        requestAnimFrame(tick);
+        drawScene();
+        animate();
+    }
+
+
+    var xOffset = 0.0;
+    var yOffset = 0.0;
+    var xOldOffset = 0.0;
+    var yOldOffset = 0.0;
+    var scale = 1.0;
+	var xMouseDown;
+	var yMouseDown;
+	var drag = 0;
+
+    function webGLStart() {
+        var canvas = document.getElementById("HDRviewer-canvas");
+
+		canvas.onmousedown = function ( ev ){
+			drag = 1;
+			xOldOffset = xOffset;
+			yOldOffset = yOffset;
+			xMouseDown = ev.clientX; 
+			yMouseDown = ev.clientY;
+		}
+		canvas.onmouseup = function ( ev ){
+			drag = 0;
+			var xDelta = ev.clientX - xMouseDown;
+			var yDelta = ev.clientY - yMouseDown;
+			xOffset = xOldOffset + (xDelta / canvas.width / scale * 2.0);
+			yOffset = yOldOffset - (yDelta / canvas.height / scale * 2.0); // Flip y axis
+			drawScene();
+		}
+		// "onmousedrag" doesn't work, it seems, hence this kludge
+		canvas.onmousemove = function ( ev ){
+			if(drag == 0) return;
+			var xDelta = ev.clientX - xMouseDown;
+			var yDelta = ev.clientY - yMouseDown;
+			xOffset = xOldOffset + (xDelta / canvas.width / scale * 2.0);
+			yOffset = yOldOffset - (yDelta / canvas.height / scale * 2.0); // Flip y axis
+			drawScene();
+		}
+		var wheelHandler = function(ev) {
+			var factor = 1.1; // Scale increment per click
+			if (ev.shiftKey) factor = 1.01;
+			scale *= ((ev.detail || ev.wheelDelta) < 0) ? factor : 1/factor;
+			drawScene();
+			ev.preventDefault();
+		};
+		canvas.addEventListener('DOMMouseScroll', wheelHandler, false);
+		canvas.addEventListener('mousewheel', wheelHandler, false);
+
+        initGL(canvas);
+        initShaders();
+        initBuffers();
+        initTexture();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.disable(gl.DEPTH_TEST);
+
+        tick();
+    }
+
+
+</script>
+
+</head>
+
+<body bgcolor="#aaaaaa" onload="webGLStart();">
+<center><h1>Philips Research Light Player</h1></center>
+<div style="float:left; width:70%;position:relative;z-index:1">
+<center>
+    <canvas id="HDRviewer-canvas" style="border: none;" width="1024" height="768"></canvas>
+	<p>
+</center>	
+</div>
+<div style="float:right; width:300; text-align:center;position:relative;z-index:2">
+<form onsubmit="return false;">
+Control your light:
+<div class="slider" id="slider-exposure" style="width: 300px; margin: 10px">
+<input class="slider-input" id="slider-input-exposure" size="4"/>
+</div>
+Exposure: <input type="text" id="value-exposure" size="4" maxLength="4" />
+</form>
+
+</p>
+<p></a>
+<script type="text/javascript">
+var slider_exposure = document.getElementById("slider-exposure");
+var input_exposure = document.forms[0]["slider-input-exposure"];
+var value_exposure = document.getElementById("value-exposure");
+var s_exposure = new Slider(slider_exposure, input_exposure);
+s_exposure.onchange = function () {
+	value_exposure.value = new String(Math.pow(s_exposure.getValue()*0.02,2)).substr(0,4);
+};
+s_exposure.setValue(50);
+</script>
+
+<script type="text/javascript">
+function highlightSelected(channel) {
+	gl.uniform1f(shaderProgram.selection, channel);
+}
+
+function resetSelected() {
+	gl.uniform1f(shaderProgram.selection, -1.0);
+}
+
+for (var i = 0; i < channel_number; i++) {
+	document.write("<p><b onMouseover=\"highlightSelected(" + i + ")\" onMouseout=\"resetSelected()\">Light channel " + i + "</b>: <input class=\"color {onImmediateChange:\'updateInfo(this," + i + ");\'}\" value=\"808080\">");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-r\" size=\"2\" />");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-g\" size=\"2\" />");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-b\" size=\"2\" /></p>");
+        document.getElementById('info' + i + '-r').value = 0.5;
+	document.getElementById('info' + i + '-g').value = 0.5;
+	document.getElementById('info' + i + '-b').value = 0.5;
+}
+
+function updateInfo(color, channel) {
+	document.getElementById('info' + channel + '-r').value = color.rgb[0];
+	document.getElementById('info' + channel + '-g').value = color.rgb[1];
+	document.getElementById('info' + channel + '-b').value = color.rgb[2];
+}
+
+</script>
+</div>
+</body>
+
+</html>

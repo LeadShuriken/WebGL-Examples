@@ -1,0 +1,25 @@
+#launcher_mode_button{
+	position:absolute;
+	left:1482px;
+	top:16px;	
+	cursor:hand; cursor:pointer;
+}
+
+#launcherContent{
+	position:relative;
+	left:439px;
+	top:274px;
+}
+
+#launcherContent img{
+	padding-bottom:25px;
+}
+
+.launcher_buttons{
+	margin-right:20px;
+	display:inline-block;
+	font-size:42px;
+	font-weight:lighter;
+	cursor:hand; cursor:pointer;
+}
+

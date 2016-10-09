@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="">
+        <meta name="author" content="">
+
+        <title>Scrolling Nav - Start Bootstrap Template</title>
+
+        <!-- Bootstrap Core CSS -->
+        <link href="css/bootstrap.min.css" rel="stylesheet">
+
+        <!-- Custom CSS -->
+        <link href="css/scrolling-nav.css" rel="stylesheet">
+
+        <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.2/modernizr.js"></script>
+
+        <script>
+            $(window).load(function () {
+                // Animate loader off screen
+                $(".se-pre-con").fadeOut("slow");
+                ;
+            });
+
+            if (window.File && window.FileReader && window.FileList && window.Blob) {
+                // Great success! All the File APIs are supported.
+            } else {
+                alert('The File APIs are not fully supported in this browser.');
+            }
+        </script>
+    </head>
+
+    <!-- The #page-top ID is part of the scrolling feature - the data-spy and data-target are part of the built-in Bootstrap scrollspy function -->
+
+    <body id="page-top" data-spy="scroll" data-target=".navbar-fixed-top">
+        <!-- Navigation -->
+        <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container">
+                <div class="navbar-header page-scroll">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand page-scroll" href="#page-top">Start Upload</a>
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse navbar-ex1-collapse">
+                    <ul class="nav navbar-nav">
+                        <!-- Hidden li included to remove active class from about link when scrolled up past about section -->
+                        <li class="hidden">
+                            <a class="page-scroll" href="#page-top"></a>
+                        </li>
+                        <li>
+                            <a class="page-scroll" href="#about">Blending</a>
+                        </li>
+                        <li>
+                            <a class="page-scroll" href="#services">Services</a>
+                        </li>
+                        <li>
+                            <a class="page-scroll" href="#contact">Contact</a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- /.navbar-collapse -->
+            </div>
+            <!-- /.container -->
+        </nav>
+
+        <!-- Intro Section -->
+        <section id="intro" class="intro-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>Upload Images...</h1>
+                        <p><strong>Instructions:</strong> <br>Upload the image files/folder you want to blend with WebGl and then press "Scroll to Blending!".<br> If differently sized the biggest pixel width/height will the one considered for the blend.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="extra_margin">
+                <a class="btn btn-default page-scroll longer" id="blending_type" href="#about">Scroll to Blending!</a>
+                <div class="btn btn-default inl" onclick="$('input[type=file]').click()" id="cover_button">Upload for Blending!</div>
+                <div id="progress_bar"><div class="percent">0%</div></div>
+            </div>
+            <input type="file" id="hidden_files" name="files[]" multiple />        
+            <output id="list"></output>
+            <a class="btn btn-default" onclick="abortRead()" id="abort_button">Abort File Upload!</a>
+            <div class="btn btn-default inl" onclick="clearFiles()" id="clear_button">Clear all Files!</div>
+            <script>
+                var files = [];
+                var ids = {};
+
+                function requestId() {
+                    var id;
+                    do {
+                        id = Math.floor(Math.random() * 1E9);
+                    } while (id in ids);
+                    return id;
+                }
+
+                if (!window.requestNextAnimationFrame) {
+                    window.requestNextAnimationFrame = function (callback, element) {
+                        var id = requestId();
+
+                        ids[id] = requestAnimationFrame(function () {
+                            ids[id] = requestAnimationFrame(function (ts) {
+                                delete ids[id];
+                                callback(ts);
+                            }, element);
+                        }, element);
+
+                        return id;
+                    };
+                }
+
+                if (!window.cancelNextAnimationFrame) {
+                    window.cancelNextAnimationFrame = function (id) {
+                        if (ids[id]) {
+                            cancelAnimationFrame(ids[id]);
+                            delete ids[id];
+                        }
+                    };
+                }
+
+                function clearFiles() {
+                    files = [];
+                    var matches = document.querySelectorAll("img.thumb");
+                    for (var i = 0, len = matches.length; i < len; i++) {
+                        matches[i].parentNode.childNodes[0]
+                        matches[i].parentNode.removeChild(matches[i]);
+                    }
+                    $("#clear_button").toggle("slow");
+                }
+
+                var reader;
+                var progress = document.querySelector('.percent');
+                function abortRead() {
+                    reader.abort();
+                }
+
+                function errorHandler(evt) {
+                    switch (evt.target.error.code) {
+                        case evt.target.error.NOT_FOUND_ERR:
+                            alert('File Not Found!');
+                            break;
+                        case evt.target.error.NOT_READABLE_ERR:
+                            alert('File is not readable');
+                            break;
+                        case evt.target.error.ABORT_ERR:
+                            break; // noop
+                        default:
+                            alert('An error occurred reading this file.');
+                    }
+                    ;
+                }
+
+                function counter(number) {
+                    var tmp = number;
+                    return function () {
+                        return tmp += 1;
+                    };
+                }
+
+                function updateProgress(count, total) {
+                    var percentLoaded = Math.round((count / total) * 100);
+                    // Increase the progress bar length.
+                    if (percentLoaded < 98) {
+                        progress.style.width = percentLoaded + '%';
+                        progress.textContent = percentLoaded + '%';
+                    } else if (total <= count) {
+                        progress.style.width = '100%';
+                        progress.textContent = '100%';
+                        setTimeout("document.getElementById('progress_bar').className='';", 2000);
+                        $("#abort_button").hide("slow");
+                        $("#clear_button").show();
+                    }
+                }
+
+                function handleFileSelect(evt) {
+                    // Reset progress indicator on new file selection.
+                    $("#abort_button").css({display: 'block'});
+
+                    progress.style.width = '0%';
+                    progress.textContent = '0%';
+
+                    files = evt.target.files; // FileList object
+                    var count = counter(0);
+                    var total_length = files.length;
+                    // Loop through the FileList and render image files as thumbnails.
+                    for (var i = 0, f; f = files[i]; i++) {
+
+                        // Only process image files.
+                        if (!f.type.match('image.*')) {
+                            total_length -= 1;
+                            continue;
+                        }
+                        reader = new FileReader();
+                        //reader.onprogress = updateProgress;
+                        reader.onerror = errorHandler;
+                        reader.onabort = function (e) {
+                            alert('File read cancelled');
+                        };
+                        reader.onloadstart = function (e) {
+                            document.getElementById('progress_bar').className = 'loading';
+                        };
+
+                        // Closure to capture the file information.
+                        reader.onload = (function (theFile) {
+                            return function (e) {
+                                // Render thumbnail.
+                                updateProgress(count(), total_length)
+                                var span = document.createElement('span');
+                                span.innerHTML = ['<img class="thumb" src="', e.target.result,
+                                    '" title="', escape(theFile.name), '"/>'].join('');
+                                document.getElementById('list').insertBefore(span, null);
+                              
+                                requestNextAnimationFrame(function () {
+                                    span.id = 'fade';
+                                });
+                            };
+                        })(f);
+                        // Read in the image file as a data URL.
+                        reader.readAsDataURL(f);
+                    }
+                    progress.style.width = '100%';
+                    progress.textContent = '100%';
+                    setTimeout("document.getElementById('progress_bar').className='';", 2000);
+                }
+                document.getElementById('hidden_files').addEventListener('change', handleFileSelect, false);
+            </script>
+
+        </section>
+        <!-- About Section -->
+        <section id="about" class="about-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>Blending</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="services-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>Other Services</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="contact-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h1>Contact Section</h1>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- jQuery -->
+        <script src="js/jquery.js"></script>
+
+        <!-- Bootstrap Core JavaScript -->
+        <script src="js/bootstrap.min.js"></script>
+
+        <!-- Scrolling Nav JavaScript -->
+        <script src="js/jquery.easing.min.js"></script>
+        <script src="js/scrolling-nav.js"></script>
+
+    </body>
+    <div class="se-pre-con"></div>
+</html>

@@ -1,0 +1,467 @@
+<!doctype html>
+<html class="no-js" lang="">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Shop window - Philips Retail Lighting</title>
+        <meta name="description" content="Philips Retail Lighting, Shop window page">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Place favicon.ico and apple-touch-icon(s) in the root directory -->
+
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/overview_fittingroom.css">
+        <link rel="stylesheet" href="css/shopwindow.css">
+        <link type="text/css" rel="StyleSheet" href="js/slider/css/bluecurve/bluecurve.css" />
+        <script type="text/javascript" src="js/vendor/modernizr-2.8.3.min.js"></script>
+        <script type="text/javascript" src="js/jquery/jquery-1.11.1.min.js"></script>
+        <script type="text/javascript" src="js/jquery-ui-1.11.1/jquery-ui.min.js"></script>
+        <script type="text/javascript" src="js/plugins.js"></script>
+        <script type="text/javascript" src="js/defaults.js"></script>
+        <script type="text/javascript" src="js/general.js"></script>
+        <script type="text/javascript" src="js/overview.js"></script>
+        <script type="text/javascript" src="js/shopwindow.js"></script>
+        <script type="text/javascript" src="js/slider/js/range.js"></script>
+        <script type="text/javascript" src="js/slider/js/timer.js"></script>
+        <script type="text/javascript" src="js/slider/js/slider.js"></script>
+ 		<script type="text/javascript" src="js/jscolor/jscolor.js"></script>
+		<script type="text/javascript" src="js/webgl/webgl-utils.js"></script>
+		
+<script id="shader-fs" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    varying vec2 vTextureCoord;
+
+    uniform sampler2D uSampler;
+	
+	uniform float exposure;
+	uniform float selection;	
+	uniform vec3 amp[9];
+
+	vec3 scurve(vec3 val, float s, float n) {
+	  return pow(val, vec3(n)) / (pow(val, vec3(n)) + vec3(pow(s, n)));
+	}
+	
+	vec3 lineargamma(vec3 val, float n) {
+	  return pow(val * vec3(n), vec3(1.0/2.2));
+	}
+	
+	vec3 exponential(vec3 val, float n)	{
+	  return pow(1.0-exp(-1.0*val*vec3(n)), vec3(1.0 / 2.2));
+	}	
+
+    void main(void) {
+		float exponent;
+		vec4 texel;
+		vec3 rgbcolor[9];
+
+		for (int i=0; i < 9; i++)
+		{
+			// texel = texture2D(uSampler, vec2(vTextureCoord.s, (vTextureCoord.t + float(i))/float(9)));
+			texel = texture2D(uSampler, vec2((vTextureCoord.s + float(floor(float(i/4))))/float(3), (vTextureCoord.t + float(float(4) - 1.0 - mod(float(i),float(4))))/float(4)));
+			exponent = texel.a * 255.0 - 128.0;
+			rgbcolor[i] = texel.rgb * pow(2.0, exponent); // Assemble HDR from RGBE
+		}
+
+		vec3 mixedcolor = vec3(0);
+		for (int i=0; i < 9; i++)
+		{
+			if (selection == float(i)) {
+				mixedcolor = mixedcolor + 2.0 * rgbcolor[i];
+			} else {
+				mixedcolor = mixedcolor + pow(amp[i],vec3(2.2)) * rgbcolor[i];
+			}
+		}
+		
+		//mixedcolor = lineargamma(mixedcolor, exposure);
+		mixedcolor = exponential(mixedcolor, exposure);
+        gl_FragColor = vec4(mixedcolor.rgb, 1.0);
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec2 aTextureCoord;
+
+    uniform float uXoffset; // Simple 2D unrotated view, don't bother with a matrix
+    uniform float uYoffset;
+    uniform float uScale;
+
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+		vec3 pos = aVertexPosition;// + vec3(uXoffset, uYoffset, 0.0);
+		//pos = pos * uScale;
+        gl_Position = vec4(pos, 1.0);
+        vTextureCoord = aTextureCoord;
+    }
+</script>
+
+<script type="text/javascript">
+    var gl;
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl", {preserveDrawingBuffer:true});
+			gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+    }
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+    var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.aVertexPosition);
+
+        shaderProgram.aTextureCoord = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+        gl.enableVertexAttribArray(shaderProgram.aTextureCoord);
+
+        shaderProgram.uXoffset = gl.getUniformLocation(shaderProgram, "uXoffset");
+        shaderProgram.uYoffset = gl.getUniformLocation(shaderProgram, "uYoffset");
+        shaderProgram.uScale = gl.getUniformLocation(shaderProgram, "uScale");
+		
+        shaderProgram.uSampler = gl.getUniformLocation(shaderProgram, "uSampler");
+		
+        shaderProgram.exposure = gl.getUniformLocation(shaderProgram, "exposure");
+        shaderProgram.selection = gl.getUniformLocation(shaderProgram, "selection");		
+		
+		gl.uniform1f(shaderProgram.selection, -1.0);
+		
+		shaderProgram.amp = [];
+		for (var i = 0; i < NrOfLights; ++i) {
+			eval( 'shaderProgram.amp[' + i + ']' + ' = gl.getUniformLocation(shaderProgram, "amp[' + i + ']")');
+		}
+    }
+
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+		// Avoid any interpolation. The channels do not independently encode intensity.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		 // Image dimensions might be NPOT, so avoid using unsupported wrap modes
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		// Do not generate mipmaps. The channels do not represent intensity,
+		// and mipmaps are not supported for NPOT textures in WebGL.
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    var TextureRGBE;
+
+    function initTexture() {
+		TextureRGBE = gl.createTexture();
+        TextureRGBE.image = new Image();
+        TextureRGBE.image.onload = function () {
+            handleLoadedTexture(TextureRGBE);
+        };
+        TextureRGBE.image.src = "images/textures/tiled.png";
+    }
+	
+	
+    var quadVertexPositionBuffer;
+    var quadVertexTextureCoordBuffer;
+    var quadVertexIndexBuffer;
+
+    function initBuffers() {
+        quadVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexPositionBuffer);
+        vertices = [
+            // One single face to draw the image as a texture
+            -1.0, -1.0,  0.0,
+             1.0, -1.0,  0.0,
+             1.0,  1.0,  0.0,
+            -1.0,  1.0,  0.0,
+		];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        quadVertexPositionBuffer.itemSize = 3;
+        quadVertexPositionBuffer.numItems = 4;
+
+        quadVertexTextureCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexTextureCoordBuffer);
+        var textureCoords = [
+          // Stretch unit square across the single face
+          0.0, 0.0,
+          1.0, 0.0,
+          1.0, 1.0,
+          0.0, 1.0,
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
+        quadVertexTextureCoordBuffer.itemSize = 2;
+        quadVertexTextureCoordBuffer.numItems = 4;
+
+        quadVertexIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadVertexIndexBuffer);
+        var quadVertexIndices = [
+            0, 1, 2,      0, 2, 3    // A single quad, made from two triangles
+        ];
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(quadVertexIndices), gl.STATIC_DRAW);
+        quadVertexIndexBuffer.itemSize = 1;
+        quadVertexIndexBuffer.numItems = 6;
+    }
+	
+	var currentred = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+	var currentgreen =  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+	var currentblue = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+	var alpha = 0.5;
+	
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.aVertexPosition, quadVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadVertexTextureCoordBuffer);
+        gl.vertexAttribPointer(shaderProgram.aTextureCoord, quadVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, TextureRGBE);
+        gl.uniform1i(shaderProgram.uSampler1, 0); // Texture unit 0
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, quadVertexIndexBuffer);
+
+        // Zoom and pan the view
+        gl.uniform1f(shaderProgram.uXoffset, xOffset);
+        gl.uniform1f(shaderProgram.uYoffset, yOffset);
+        gl.uniform1f(shaderProgram.uScale, scale);
+		
+		// Set the tone mapping parameters
+		gl.uniform1f(shaderProgram.exposure, parseFloat( value_exposure ));
+		
+		for (var i=0; i<NrOfLights; i++) { 
+			currentred[i] = (1.0 - alpha) * currentred[i] + alpha * parseFloat(document.getElementById('info' + i + '-r').value);
+			currentgreen[i] = (1.0 - alpha) * currentgreen[i] + alpha * parseFloat(document.getElementById('info' + i + '-g').value);
+			currentblue[i] = (1.0 - alpha) * currentblue[i] +  alpha * parseFloat(document.getElementById('info' + i + '-b').value);
+			//gl.uniform3f(shaderProgram.amp[i], parseFloat(document.getElementById('info' + i + '-r').value), parseFloat(document.getElementById('info' + i + '-g').value), parseFloat(document.getElementById('info' + i + '-b').value));
+			gl.uniform3f(shaderProgram.amp[i], currentred[i], currentgreen[i], currentblue[i]);
+			// gl.uniform3f(shaderProgram.amp[i], parseFloat(colorinforgb[i].red), parseFloat(colorinforgb[i].green), parseFloat(colorinforgb[i].blue));
+		}
+		
+		// Draw the single quad
+        gl.drawElements(gl.TRIANGLES, quadVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+    }
+
+    var lastTime = 0;
+
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+        }
+        lastTime = timeNow;
+    }
+
+
+    function tick() {
+        requestAnimFrame(tick);
+        drawScene();
+        animate();
+    }
+
+
+    var xOffset = 0.0;
+    var yOffset = 0.0;
+    var xOldOffset = 0.0;
+    var yOldOffset = 0.0;
+    var scale = 1.0;
+	var xMouseDown;
+	var yMouseDown;
+	var drag = 0;
+
+    function webGLStart() {
+        var canvas = document.getElementById("HDRviewer_canvas");
+
+		canvas.onmousedown = function ( ev ){
+			drag = 1;
+			xOldOffset = xOffset;
+			yOldOffset = yOffset;
+			xMouseDown = ev.clientX; 
+			yMouseDown = ev.clientY;
+		};
+		canvas.onmouseup = function ( ev ){
+			drag = 0;
+			var xDelta = ev.clientX - xMouseDown;
+			var yDelta = ev.clientY - yMouseDown;
+			xOffset = xOldOffset + (xDelta / canvas.width / scale * 2.0);
+			yOffset = yOldOffset - (yDelta / canvas.height / scale * 2.0); // Flip y axis
+			drawScene();
+		};
+		// "onmousedrag" doesn't work, it seems, hence this kludge
+		canvas.onmousemove = function ( ev ){
+			if(drag == 0) return;
+			var xDelta = ev.clientX - xMouseDown;
+			var yDelta = ev.clientY - yMouseDown;
+			xOffset = xOldOffset + (xDelta / canvas.width / scale * 2.0);
+			yOffset = yOldOffset - (yDelta / canvas.height / scale * 2.0); // Flip y axis
+			drawScene();
+		};
+		var wheelHandler = function(ev) {
+			var factor = 1.1; // Scale increment per click
+			if (ev.shiftKey) factor = 1.01;
+			scale *= ((ev.detail || ev.wheelDelta) < 0) ? factor : 1/factor;
+			drawScene();
+			ev.preventDefault();
+		};
+		canvas.addEventListener('DOMMouseScroll', wheelHandler, false);
+		canvas.addEventListener('mousewheel', wheelHandler, false);
+
+        initGL(canvas);
+        initShaders();
+        initBuffers();
+        initTexture();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.disable(gl.DEPTH_TEST);
+
+        tick();
+    }
+</script>		
+    </head>
+    <body onload="webGLStart();">
+        <!--[if lt IE 8]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+        <!-- Content -->
+		<div id="header"><img id="home_button" src="img/home_button.png" /></div>
+		<div id="content">
+			<div id="mainimagecontainer">
+				<div id="mainimage_div" class="invisible"><img id="mainimage" src="" /></div>
+				<div id="HDRviewer_div" class="invisible canvas__container"><canvas id="HDRviewer_canvas" height="960" width="1280">&nbsp;</canvas></div>
+			</div>
+			<div id="rightmenu">
+				<div id="categoryButtons">
+					<img id="player_button" width="150" src="img/player_button_inactive.png" />
+					<img id="presets_button" width="150" src="img/presets_button_inactive.png" />
+					<img id="settings_button" width="150" src="img/settings_button_inactive.png" />
+				</div>
+				<div id="categoryContent">
+					<div id="player_category_content" class="invisible">
+						<script type="text/javascript">
+						i=0; for(movie in moviesDynamic){
+							document.write("<div id=\"movie_button_dynamic_"+i+"\" class=\"movie_button movie_button_inactive\" onClick=\"run_movie('dynamic',"+i+");\" >"+movie+"</div>");
+							i++;
+						};
+						</script>							
+						
+						<span class="invisible">Time:<input type="text" id="movie_time" name="movie_time" value="0" maxlength="5" disabled="disabled"></span><br>
+						<!--Set to display:none so that it is not shown and doesn't take space-->
+						<canvas id="movie_pattern" class="invisible">&nbsp;</canvas>
+						
+					</div>
+					<div id="presets_category_content" class="invisible">
+						<script type="text/javascript">
+						i=0; for(movie in moviesStatic){
+							document.write("<div id=\"movie_button_static_"+i+"\" class=\"movie_button movie_button_inactive\" onClick=\"run_movie('static',"+i+");\" >"+movie+"</div>");
+							i++;
+						};
+						</script>							
+					</div>
+					<div id="settings_category_content" class="invisible">
+						<div class="setting_select">Select light:<select id="setting_light_select" class="custom-select2">&nbsp;</select></div>
+						<div id="setting_intensity_select" class="setting_select">Intensity: <div id="setting_intensity_slider" class="setting_slider"><img id="setting_intensity_sliderpicker" src="images/SliderPicker.png" /></div></div>
+						<div id="setting_colorpicker">
+							<canvas id="canvas_colorpicker" width="480" height="480">&nbsp;</canvas>
+							<img id="img_colorpickerBG" src="images/ColorPickerBGM480.png" width="480" height="480" />
+							<script type="text/javascript">
+							for(i=0; i<NrOfLights; i++){
+								document.write("<img id=\"img_colorpicker"+i+"\" class=\"img_colorpicker\" style=\"left:"+(15+i*25)+"px;top:550px;\" src=\"images/ColorPicker.png\" onMouseMove=\"getColor2Image("+i+",0,0)\" onClick=\"makeColorPickerActive(" + i + ") \" onMouseover=\"highlightSelected(" + i + ")\" onMouseout=\"resetSelected()\"/>");
+								$('#img_colorpicker'+i).draggable({containment: "#canvas_colorpicker"}); // first create, then able to set disable..							
+								$('#img_colorpicker'+i).draggable('disable');
+							}
+							</script>
+						</div>
+						<!-- div id="setting_reset_button">Reset</div -->
+						<div id="setting_save_button">Save</div>
+<form onsubmit="return false;">
+<div class="invisible">
+	Control your light:
+	<div class="slider" id="slider-exposure" style="width: 300px; margin: 10px">
+		<input class="slider-input" id="slider-input-exposure" size="4"/>
+	</div>
+</div>
+</form>
+
+<script type="text/javascript">
+var slider_exposure = document.getElementById("slider-exposure");
+var input_exposure = document.forms[0]["slider-input-exposure"];
+var s_exposure = new Slider(slider_exposure, input_exposure);
+s_exposure.onchange = function () {
+	value_exposure.value = new String(Math.pow(s_exposure.getValue()*0.02,2)).substr(0,4);
+};
+s_exposure.setValue(50);
+ 
+for (var i=0; i<NrOfLights; i++) {
+	document.write("<span class=\"invisible\"><b onMouseover=\"highlightSelected(" + i + ")\" onMouseout=\"resetSelected()\">Light channel " + i + "</b>"
+	 + " <input type=\"hidden\" class=\"color {onImmediateChange:\'updateInfo(this," + i + ");\'}\" value=\"808080\">");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-r\" size=\"2\" value=\"1\" />");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-g\" size=\"2\" value=\"1\" />");
+	document.write("<input type=\"hidden\" id=\"info" + i + "-b\" size=\"2\" value=\"1\" /></span>");
+}
+</script>						
+						
+					</div>
+				</div>
+			</div>
+		</div>
+    </body>
+</html>

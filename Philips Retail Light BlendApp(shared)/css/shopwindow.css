@@ -1,0 +1,87 @@
+#mainvideo_div, #HDRviewer_div, #mainimage_div{
+	position:absolute;
+	left:0;
+	top:0;
+	width:100%;
+}
+
+.canvas__container{
+/*	height: 100%;
+	position: relative;
+	width: 100%; */
+}
+
+#HDRviewer_canvas{
+	border: none;
+/*	height: 100%;
+	position: relative;
+	width: 100%;
+	z-index: 1; */
+}
+
+/*.canvas__mirror{
+	height: 100%;
+	left: 0;
+	position: absolute;
+	top: 0;
+	width: 100%; 
+}*/
+
+#canvas_colorpicker{
+	width:480px;
+	height:480px;
+	border:1px;
+}
+
+#img_colorpickerBG{
+	display: none;
+}
+
+.img_colorpicker{
+	position: absolute;
+	top: 550px;
+	cursor: move;
+	/*opacity: 0.5;*/
+}
+
+.setting_slider{
+	position: relative;
+	left: 180px;
+	top: -32px;
+	width:250px;
+	height: 3px;
+	background: url('../images/SliderBar.png') no-repeat;
+}
+
+#setting_intensity_sliderpicker{
+	left:170px;
+}
+
+.setting_slider img{
+	position:relative;
+	top:-27px;
+}
+
+/*#setting_reset_button,*/ 
+#setting_save_button{
+	position: relative;
+	background: #0066A1;
+	width:480px;/*230px;*/
+	height:58px;
+	color:#ffffff;
+	font-size:24px;
+	vertical-align: middle;
+	text-align:center;
+	line-height:58px;
+	cursor:hand; cursor: pointer;
+}
+/*
+#setting_reset_button{
+	float:left;
+}
+#setting_save_button{
+	float:right;
+	right:10px;
+}
+*/
+

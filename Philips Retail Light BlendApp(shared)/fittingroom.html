@@ -1,0 +1,63 @@
+<!doctype html>
+<html class="no-js" lang="">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>Fitting room - Philips Retail Lighting</title>
+        <meta name="description" content="Philips Retail Lighting, Fitting room page">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Place favicon.ico and apple-touch-icon(s) in the root directory -->
+
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/overview_fittingroom.css">
+        <script type="text/javascript" src="js/vendor/modernizr-2.8.3.min.js"></script>
+        <script type="text/javascript" src="js/jquery/jquery-1.11.1.min.js"></script>
+        <script type="text/javascript" src="js/plugins.js"></script>
+        <script type="text/javascript" src="js/defaults.js"></script>
+        <script type="text/javascript" src="js/general.js"></script>
+        <script type="text/javascript" src="js/fittingroom.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 8]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+        <!-- Content -->
+		<div id="header"><img id="home_button" src="img/home_button.png" /></div>
+		<div id="content">
+			<div id="mainimagecontainer"><img id="mainimage" src="" /></div>
+			<div id="rightmenu">
+				<!-- div id="categoryButtons">
+					<img id="player_button" width="150" src="img/player_button_inactive.png" />
+					<img id="presets_button" width="150" src="img/presets_button_inactive.png" />
+					<img id="settings_button" width="150" src="img/settings_button_inactive.png" />
+				</div -->
+				<div class="categoryTitle">Make your selections:</div>
+				<div id="categoryContent">
+					<!-- div id="player_category_content" class="invisible">
+						<div id="movie_button1" class="movie_button movie_button_active">Movie 1</div>
+						<div id="movie_button2" class="movie_button movie_button_inactive">Movie 2</div>
+						<div id="movie_button3" class="movie_button movie_button_inactive">Movie 3</div>
+					</div -->
+					<div id="presets_category_content" class="visible">
+						<!-- http://tympanus.net/codrops/2012/10/04/custom-drop-down-list-styling/ -->
+						<div class="presets_select">Shop style:<select id="preset_shopstyle_select" class="custom-select1"></select></div>
+						<!-- div class="presets_select">Luminaire:<select id="preset_luminaire_select" class="custom-select1"></select></div -->
+						<div class="presets_select">Color Temperature:<select id="preset_colortemperature_select" class="custom-select1"></select></div>
+						<!-- div class="presets_select">Beam Angle:<select id="preset_beamangle_select" class="custom-select1"></select></div -->
+						<div class="presets_select">Accent Light:<select id="preset_accentlight_select" class="custom-select1"></select></div>
+						<div id="preset_reset_button">Reset</div>
+					</div>
+					<!-- div id="settings_category_content" class="invisible">
+						<div class="presets_select">Select luminaire:<select id="setting_selectluminaire" name="setting_selectluminaire" class="custom-select2"></select></div>
+						<div id="setting_colorpicker"><img src="img/colorpicker.png" /></div>
+						<div id="setting_intensity_button"><img src="img/intensity_button_withoutslider.png" /></div>
+						<div id="setting_reset_button"></div><div id="setting_save_button"></div>
+					</div -->
+				</div>
+			</div>
+		</div>
+    </body>
+</html>

@@ -1,0 +1,143 @@
+#player_category_content{
+	position:absolute;
+	top:0px;
+	left:0px;
+}
+
+.movie_button, .preset_button{
+	position:relative;
+	width:450px;
+	margin-bottom:10px;
+	height:58px;
+	line-height: 58px;
+	padding-left:32px;
+	font-size:24px;
+	display:block;
+	vertical-align: middle;
+	cursor:hand; cursor:pointer;
+}
+.movie_button_active, .preset_button_active{
+	background: #FFFFFF left top url('../img/moviettl_button_active.png') no-repeat;
+	color:#0B5ED6;
+	font-weight:bold;
+}
+.movie_button_inactive, .preset_button_inactive{
+	background-image: url('../img/moviettl_button_inactive.png');
+	color:black;
+	font-weight:normal;
+}
+
+#presets_category_content{
+	position:absolute;
+	top:0px;
+	left:0px;
+}
+
+/* ----- dropdown start select --- */
+.presets_select, .setting_select{
+	background: #ffffff;
+	width:453px;
+	height:58px;
+	color:#000000;
+	font-size:24px;
+	padding-left:26px;
+	margin-bottom:10px;
+	vertical-align: middle;
+	line-height:58px;
+}
+
+	.select-wrapper1, .select-wrapper2{
+		float: right;
+		display: inline-block;
+		border: 0px solid white;            
+		background: url("../images/Presets_assets/DropdownDown.png") no-repeat right 0 transparent;
+		cursor:hand; cursor:pointer;
+		z-index:2;
+	}
+	.select-wrapper1{
+		width:220px;	
+	}
+	.select-wrapper2{
+		width:280px;		
+	}
+	.select-wrapper1, .select-wrapper1 select,
+	.select-wrapper2, .select-wrapper2 select{
+		height: 58px;
+		line-height: 58px;
+	}
+	.select-wrapper1, .select-wrapper1 select{
+		width: 230px;
+	}
+	.select-wrapper2, .select-wrapper2 select{
+		width: 280px;
+	}
+	
+	.select-wrapper1:hover, .select-wrapper2:hover{
+		background: url("../images/Presets_assets/DropdownUp.png") no-repeat right 0 transparent;
+		border-color: #239fdb;
+	}
+	.select-wrapper1 .holder, .select-wrapper2 .holder{
+		display: block;
+		margin: 0px 35px 0 5px;
+		white-space: nowrap;            
+		overflow: hidden;
+		z-index: -1;
+		font-size:24px;
+		/*font-weight:bold;*/
+		/*color:white;*/
+		cursor:hand; cursor: pointer;
+	}
+	.select-wrapper1 select, .select-wrapper2 select{
+		margin: 0;
+		position: absolute;
+		z-index: 3;            
+		outline: none;
+		opacity: 0;  /* hide orig ooutline and own arrow */
+		/* CSS hacks for older browsers */
+		_noFocusLine: expression(this.hideFocus=true); 
+		-ms-filter:"progid:DXImageTransform.Microsoft.Alpha(Opacity=0)";
+		filter: alpha(opacity=0);
+		-khtml-opacity: 0;
+		-moz-opacity: 0;
+		font-size:24px;
+		color:black;
+		line-height:2;		
+		cursor:hand; cursor: pointer;
+	}
+/* ----- dropdown end select --- */
+
+
+#preset_reset_button{
+	background: #0066A1;
+	width:480px;
+	height:58px;
+	color:#ffffff;
+	font-size:24px;
+	vertical-align: middle;
+	text-align:center;
+	line-height:58px;
+	cursor:hand; cursor: pointer;
+}
+
+#settings_category_content{
+	position:absolute;
+	top:0px;
+	left:0px;
+}
+
+#setting_colorpicker{
+	/*position:relative;
+	width:480px;*/
+	margin-bottom:10px;
+}
+
+#setting_colorpicker img{}
+
+#setting_brightness_button{
+	margin-bottom:10px;
+	background: 
+}
+
+#setting_intensity_button{
+	
+}
